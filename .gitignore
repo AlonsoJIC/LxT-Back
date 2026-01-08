@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+audio/
+transcripts/
+.env
+ffmpeg.exe
+ffprobe.exe
+.env
