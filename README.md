@@ -11,12 +11,13 @@ Este proyecto incluye un archivo `.gitignore` que excluye:
 ## Requisitos
 - Python 3.10+ y FastAPI
 - Instalar dependencias con `pip install -r requirements.txt`
-- Descargar ffmpeg.exe y colocarlo en la raíz del proyecto (`LxT-Back/ffmpeg.exe`). Es obligatorio para la transcripción.
+- Descargar el full build de ffmpeg desde https://ffmpeg.org/download.html (o https://www.gyan.dev/ffmpeg/builds/), que incluye ffmpeg.exe y ffprobe.exe.
+- Coloca ambos archivos (`ffmpeg.exe` y `ffprobe.exe`) en la raíz del proyecto (`LxT-Back/`). Son obligatorios para la transcripción y para obtener la duración de los audios.
 - Modelos Whisper instalados (por defecto se usa el modelo 'base')
 - Solo se soporta idioma español
 - Formatos de audio recomendados: mp3, wav, m4a
 
-**Importante:** ffmpeg.exe no se incluye en el repositorio por temas de licencia y tamaño. Descárgalo desde https://ffmpeg.org/download.html y colócalo en la carpeta principal.
+**Importante:** ffmpeg.exe y ffprobe.exe no se incluyen en el repositorio por temas de licencia y tamaño. Descárgalos y colócalos en la carpeta principal.
 
 ## Funcionalidades
 - Subida de archivos de audio

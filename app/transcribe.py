@@ -1,18 +1,37 @@
 
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Query, Request
 from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 import whisper
 import os
 import sys
-
 import subprocess
 import json
 
+# Definir router ANTES de cualquier decorador
 router = APIRouter(prefix="/transcript", tags=["transcript"])
 AUDIO_DIR = Path(__file__).parent.parent / "audio"
 TRANSCRIPTS_DIR = Path(__file__).parent.parent / "transcripts"
 TRANSCRIPTS_DIR.mkdir(exist_ok=True)
+
+@router.post("")
+def transcribe_on_demand(filename: str = Query(..., description="Nombre del archivo de audio")):
+    audio_path = AUDIO_DIR / filename
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail=f"Archivo de audio '{filename}' no encontrado")
+    transcript_file = transcribe_audio(filename)
+    transcript_path = TRANSCRIPTS_DIR / transcript_file
+    if transcript_path.exists():
+        with open(transcript_path, "r", encoding="utf-8") as f:
+            transcript_text = f.read()
+    else:
+        transcript_text = None
+    return {"filename": transcript_file, "transcript": transcript_text, "message": "Transcripción generada correctamente"}
+
+@router.get("/list")
+def list_transcripts():
+    files = [f.name for f in TRANSCRIPTS_DIR.glob("*.txt")]
+    return {"transcripts": files}
 
 # Forzar ruta de ffmpeg para Whisper y subprocess
 FFMPEG_PATH = str(Path(__file__).parent.parent / "ffmpeg" / "ffmpeg.exe")
@@ -43,10 +62,6 @@ def transcribe_audio(filename: str):
             f.write("\n".join(texts) + "\n\n")
     return transcript_path.name
 
-@router.get("/list")
-def list_transcripts():
-    files = [f.name for f in TRANSCRIPTS_DIR.glob("*.txt")]
-    return {"transcripts": files}
 
 @router.get("/{filename}")
 def get_transcript(filename: str):
