@@ -69,10 +69,14 @@ def list_audios():
 
 @audio_router.post("/upload")
 def upload_audio(file: UploadFile = File(...)):
-    allowed_ext = {'.mp3', '.wav', '.m4a'}
+    allowed_ext = {'.mp3', '.wav', '.m4a', '.webm', '.ogg', '.aac', '.flac', '.amr'}
     ext = Path(file.filename).suffix.lower()
+    # Validar que el archivo sea de tipo audio/*
+    if not file.content_type.startswith('audio/'):
+        raise HTTPException(status_code=415, detail=f"Tipo MIME no soportado: {file.content_type}. Debe ser audio/*.")
     if ext not in allowed_ext:
-        raise HTTPException(status_code=415, detail="Formato de audio no soportado. Usa mp3, wav o m4a.")
+        # Permitir extensiones desconocidas pero advertir
+        pass  # Opcional: puedes registrar un warning aquí
     file_location = AUDIO_DIR / file.filename
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
