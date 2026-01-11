@@ -9,15 +9,42 @@ Este proyecto incluye un archivo `.gitignore` que excluye:
 
 
 ## Requisitos
-- Python 3.10+ y FastAPI
-- Instalar dependencias con `pip install -r requirements.txt`
-- Descargar el full build de ffmpeg desde https://ffmpeg.org/download.html (o https://www.gyan.dev/ffmpeg/builds/), que incluye ffmpeg.exe y ffprobe.exe.
-- Coloca ambos archivos (`ffmpeg.exe` y `ffprobe.exe`) en la raíz del proyecto (`LxT-Back/`). Son obligatorios para la transcripción y para obtener la duración de los audios.
-- Modelos Whisper instalados (por defecto se usa el modelo 'base')
-- Solo se soporta idioma español
-- Formatos de audio recomendados: mp3, wav, m4a
 
 **Importante:** ffmpeg.exe y ffprobe.exe no se incluyen en el repositorio por temas de licencia y tamaño. Descárgalos y colócalos en la carpeta principal.
+
+## Instalación recomendada
+
+1. Crea un entorno virtual:
+	```
+	python -m venv venv
+	venv\Scripts\activate  # En Windows
+	```
+2. Instala dependencias:
+	```
+	pip install -r requirements.txt
+	pip install torch numpy fastapi uvicorn
+	```
+3. Descarga ffmpeg.exe y ffprobe.exe y colócalos en la raíz del proyecto.
+4. (Opcional) Si quieres ejecutar como aplicación .exe, usa PyInstaller:
+	```
+	pip install pyinstaller
+	pyinstaller transcription-backend.spec
+	```
+
+## Estructura de carpetas
+
+```
+LxT-Back/
+├── app/              # Código fuente principal
+├── audio/            # Audios subidos por el usuario
+├── transcripts/      # Transcripciones generadas
+├── dist/             # Archivos generados por PyInstaller
+├── build/            # Archivos temporales de PyInstaller
+├── ffmpeg/           # Binarios opcionales de ffmpeg
+├── main.py           # Script principal
+├── requirements.txt  # Dependencias
+├── .env              # Variables de entorno (opcional)
+```
 
 ## Funcionalidades
 - Subida de archivos de audio
@@ -26,7 +53,12 @@ Este proyecto incluye un archivo `.gitignore` que excluye:
 - Exportación y descarga de transcripciones en .txt
 - Listado de audios y transcripciones disponibles
 
+### Ejecución como .exe
+Si generaste el ejecutable con PyInstaller, ejecuta `dist/transcription-backend.exe` para iniciar el backend sin necesidad de Python instalado.
 ## Uso
+
+## Contacto y soporte
+Para dudas, sugerencias o soporte, contacta al desarrollador.
 1. Instala dependencias con `pip install -r requirements.txt`
 2. Descarga y coloca ffmpeg.exe en la raíz del proyecto.
 3. Inicia el backend con `python main.py`

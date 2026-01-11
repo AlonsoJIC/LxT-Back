@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 import shutil
@@ -8,23 +7,23 @@ from app.transcribe import router as transcribe_router
 from fastapi.middleware.cors import CORSMiddleware
 import datetime
 import subprocess
+import sys
+import os
+import traceback
+
+# Detectar el directorio base correcto
+if getattr(sys, 'frozen', False):
+    # Estamos corriendo desde el .exe
+    BASE_DIR = Path(sys.executable).parent
+else:
+    # Estamos en desarrollo
+    BASE_DIR = Path(__file__).parent.parent
 
 app = FastAPI()
-
-from fastapi import FastAPI, File, UploadFile
-app = FastAPI()
-from fastapi.responses import JSONResponse
-import shutil
-from pathlib import Path
-from fastapi import APIRouter, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import datetime
-import subprocess
-
 
 # Audio router
 audio_router = APIRouter(prefix="/audio", tags=["audio"])
-AUDIO_DIR = Path(__file__).parent.parent / "audio"
+AUDIO_DIR = BASE_DIR / "audio"
 AUDIO_DIR.mkdir(exist_ok=True)
 
 app.add_middleware(
@@ -38,7 +37,7 @@ app.add_middleware(
 def get_audio_duration(file_path):
     try:
         cmd = [
-            str(Path(__file__).parent.parent / "ffprobe.exe"),
+            str(BASE_DIR / "ffprobe.exe"),
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
@@ -83,19 +82,26 @@ def upload_audio(file: UploadFile = File(...)):
     from app.transcribe import transcribe_audio
     try:
         transcript_file = transcribe_audio(file.filename)
-        transcript_path = Path(__file__).parent.parent / "transcripts" / transcript_file
+        transcript_path = BASE_DIR / "transcripts" / transcript_file
         if transcript_path.exists():
             with open(transcript_path, "r", encoding="utf-8") as f:
                 transcript_text = f.read()
         else:
             transcript_text = None
     except Exception as e:
+        error_detail = traceback.format_exc()
+        print(f"ERROR EN TRANSCRIPCIÓN: {error_detail}")
         transcript_text = None
-        return JSONResponse(content={"filename": file.filename, "message": f"Archivo subido pero error en transcripción: {e}"}, status_code=500)
+        return JSONResponse(content={
+            "filename": file.filename, 
+            "message": f"Archivo subido pero error en transcripción: {str(e)}",
+            "error_detail": error_detail
+        }, status_code=500)
     return JSONResponse(content={"filename": file.filename, "message": "Archivo subido y transcrito correctamente", "transcript": transcript_text})
+
 @audio_router.delete("/{filename}")
 def delete_audio(filename: str):
-    allowed_ext = ['.mp3', '.wav', '.m4a']
+    allowed_ext = ['.mp3', '.wav', '.m4a', '.webm', '.ogg', '.aac', '.flac', '.amr']
     base = Path(filename).stem
     ext = Path(filename).suffix.lower()
     candidates = []
@@ -109,7 +115,7 @@ def delete_audio(filename: str):
         if c.exists():
             found = c
             break
-    transcript_path = Path(__file__).parent.parent / "transcripts" / f"{base}.mp3.txt"
+    transcript_path = BASE_DIR / "transcripts" / f"{base}{ext}.txt"
     deleted = False
     if found:
         found.unlink()
@@ -122,15 +128,6 @@ def delete_audio(filename: str):
         available = [f.name for f in AUDIO_DIR.glob('*') if f.is_file()]
         raise HTTPException(status_code=404, detail=f"Audio '{filename}' no encontrado. Audios disponibles: {available}")
 
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    transcribe_audio(file.filename)
-    return JSONResponse(content={"filename": file.filename, "message": "Archivo subido y transcrito correctamente"})
-
-
-
 # Registrar routers al final del archivo
 app.include_router(audio_router)
 app.include_router(transcribe_router)
-
-

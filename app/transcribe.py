@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException, Body, Query, Request
 from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
@@ -9,11 +8,20 @@ import os
 import sys
 import subprocess
 import json
+import numpy as np
+
+# Detectar el directorio base correcto
+if getattr(sys, 'frozen', False):
+    # Estamos corriendo desde el .exe
+    BASE_DIR = Path(sys.executable).parent
+else:
+    # Estamos en desarrollo
+    BASE_DIR = Path(__file__).parent.parent
 
 # Definir router ANTES de cualquier decorador
 router = APIRouter(prefix="/transcript", tags=["transcript"])
-AUDIO_DIR = Path(__file__).parent.parent / "audio"
-TRANSCRIPTS_DIR = Path(__file__).parent.parent / "transcripts"
+AUDIO_DIR = BASE_DIR / "audio"
+TRANSCRIPTS_DIR = BASE_DIR / "transcripts"
 TRANSCRIPTS_DIR.mkdir(exist_ok=True)
 
 # --- DOCX export ---
@@ -51,8 +59,6 @@ def export_transcript_docx(filename: str):
             "Content-Disposition": f"attachment; filename={docx_filename}"
         }
     )
-TRANSCRIPTS_DIR = Path(__file__).parent.parent / "transcripts"
-TRANSCRIPTS_DIR.mkdir(exist_ok=True)
 
 @router.post("")
 def transcribe_on_demand(filename: str = Query(..., description="Nombre del archivo de audio")):
@@ -74,10 +80,39 @@ def list_transcripts():
     return {"transcripts": files}
 
 # Forzar ruta de ffmpeg para Whisper y subprocess
-FFMPEG_PATH = str(Path(__file__).parent.parent / "ffmpeg" / "ffmpeg.exe")
+FFMPEG_DIR = str(BASE_DIR / "ffmpeg")
+FFMPEG_PATH = str(BASE_DIR / "ffmpeg" / "ffmpeg.exe")
+
+# Agregar la carpeta ffmpeg al PATH (no solo el ejecutable)
 if os.path.exists(FFMPEG_PATH):
-    os.environ["PATH"] = FFMPEG_PATH + os.pathsep + os.environ.get("PATH", "")
-    os.environ["FFMPEG_BINARY"] = FFMPEG_PATH
+    os.environ["PATH"] = FFMPEG_DIR + os.pathsep + os.environ.get("PATH", "")
+
+# Monkey-patch para que whisper use nuestro ffmpeg
+import whisper.audio
+original_load_audio = whisper.audio.load_audio
+
+def custom_load_audio(file: str, sr: int = 16000):
+    cmd = [
+        FFMPEG_PATH,
+        "-nostdin",
+        "-threads", "0",
+        "-i", file,
+        "-f", "s16le",
+        "-ac", "1",
+        "-acodec", "pcm_s16le",
+        "-ar", str(sr),
+        "-"
+    ]
+    
+    try:
+        out = subprocess.run(cmd, capture_output=True, check=True).stdout
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
+    
+    return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+
+# Reemplazar la función original
+whisper.audio.load_audio = custom_load_audio
 
 model = whisper.load_model("base")  # Puedes cambiar a "small", "medium", etc.
 
@@ -101,22 +136,6 @@ def transcribe_audio(filename: str):
             f.write(f"--- Minuto {minute} ---\n")
             f.write("\n".join(texts) + "\n\n")
     return transcript_path.name
-
-
-
-    paragraphs = {}
-    for seg in segments:
-        minute = int(seg['start'] // 60)
-        if minute not in paragraphs:
-            paragraphs[minute] = []
-        paragraphs[minute].append(f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}")
-    # Guardar como {filename}.txt
-    transcript_path = TRANSCRIPTS_DIR / f"{filename}.txt"
-    with open(transcript_path, "w", encoding="utf-8") as f:
-        for minute, texts in paragraphs.items():
-            f.write(f"--- Minuto {minute} ---\n")
-            f.write("\n".join(texts) + "\n\n")
-    return JSONResponse(content={"transcript_file": transcript_path.name, "message": "Transcripción completada (español)"})
 
 @router.get("/{filename}")
 def get_transcript(filename: str):
@@ -170,7 +189,3 @@ def delete_transcript(filename: str):
             raise HTTPException(status_code=404, detail="Transcripción no encontrada")
     transcript_path.unlink()
     return {"filename": transcript_path.name, "message": "Transcripción eliminada"}
-@router.get("/list")
-def list_transcripts():
-    files = [f.name for f in TRANSCRIPTS_DIR.glob("*.txt")]
-    return {"transcripts": files}
