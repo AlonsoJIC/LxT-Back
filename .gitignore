@@ -20,3 +20,8 @@ warn-*.txt
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Sistema de licencias
+license.lic
+public/data/
+public/keys/public.key

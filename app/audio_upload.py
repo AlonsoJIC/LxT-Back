@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from app.transcribe import router as transcribe_router
+from app.license_router import router as license_router
 from fastapi.middleware.cors import CORSMiddleware
 import datetime
 import subprocess
@@ -33,6 +34,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Iniciar monitor de licencia en background
+@app.on_event("startup")
+async def startup_event():
+    """Inicia el monitor de licencia al arrancar la app."""
+    from app.license_monitor import start_license_monitor
+    start_license_monitor()
+    print("✅ Monitor de licencia en background iniciado")
 
 def get_audio_duration(file_path):
     try:
@@ -131,3 +140,4 @@ def delete_audio(filename: str):
 # Registrar routers al final del archivo
 app.include_router(audio_router)
 app.include_router(transcribe_router)
+app.include_router(license_router)

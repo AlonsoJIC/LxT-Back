@@ -33,7 +33,8 @@ from typing import Tuple, Dict
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import InvalidSignature
-from app.fingerprint import generate_machine_id
+from .fingerprint import generate_machine_id
+import sys
 
 LICENSE_STATUS = {
     'valid': 'Licencia válida',
@@ -43,8 +44,25 @@ LICENSE_STATUS = {
     'clock_rollback': 'Retroceso de reloj detectado',
 }
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PUBLIC_KEY_PATH = os.path.join(BASE_DIR, 'keys', 'public.key')
+def get_resource_path(relative_path):
+    """Obtiene la ruta correcta tanto en desarrollo como en ejecutable PyInstaller."""
+    if getattr(sys, 'frozen', False):
+        # Ejecutable empaquetado con PyInstaller
+        base_path = sys._MEIPASS
+    else:
+        # Desarrollo - ruta del módulo
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
+# Rutas que funcionan tanto en desarrollo como en .exe
+PUBLIC_KEY_PATH = get_resource_path('public/keys/public.key')
+
+# Para data dir, usar directorio del ejecutable (no _MEIPASS temporal)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 LAST_RUN_FILE = os.path.join(DATA_DIR, '.last_run')
